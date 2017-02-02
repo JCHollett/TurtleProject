@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>CCraft</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.dltk.core.scriptbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.ldt.nature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>disk</name>
+			<type>2</type>
+			<location>C:/GixCraft/world/computer/disk</location>
+		</link>
+	</linkedResources>
+</projectDescription>

@@ -1,0 +1,16 @@
+shell.run("/disk/version.lua")
+shell.run("/disk/install.lua")
+shell.setDir("/")
+local r, d = turtle.inspectDown()
+if version and d ~= nil then
+    if string.find(d.name,"Computer") then
+        for i=1,5 do
+            turtle.forward()
+        end
+        io.write("Press any key to restart\n")
+        io.read()
+        os.reboot()
+    end
+else
+    shell.run("/startup")
+end

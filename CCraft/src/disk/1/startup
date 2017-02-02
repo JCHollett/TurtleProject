@@ -1,0 +1,4 @@
+shell.run("/disk/version.lua")
+shell.run("/disk/install.lua")
+shell.setDir("/")
+shell.run("/startup")
