@@ -1,3 +1,12 @@
+local Sides = {
+	[1] = "",
+	[2] = "",
+	[3] = "",
+	[4] = "",
+	[5] = "",
+	[6] = "",
+}
+
 Devices = {
 	['SENSOR'] = 'turtlesensorenvironment',
 	['REACTOR'] = 'BigReactors-Reactor',
@@ -166,31 +175,25 @@ function Wrap.new(this)
 	end
 	
 	function self:update()
-		local Close = {}
-		for k, v in pairs(self.wrapped) do
-			local lambda = DeInitialize[peripheral.getType(k)]
-			if lambda then
-				Close[k] = lambda(Source)
-			end
-		end
-		for k, v in pairs(Close) do	
-			self:close(k)
-		end
+		self.wrapped = {}
+		self.type = {}
+		self.last = nil
+		self.lastDir = nil
 	end
 	function self:turning(t)
 		local wrapped = {}
 		for k,v in pairs(self.wrapped) do
-			v.side = t[k]
+			v.side = t[k] or v.side
 			wrapped[v.side] = v
 			v:rewrap()
 		end
 		self.wrapped = wrapped
 		for k,v in pairs(self.type) do
 			if not Static[k] then
-				self.type[k] = t[v]
+				self.type[k] = t[v] or v
 			end
 		end
-		self.lastDir = self.last.side
+		self.lastDir = self.last and self.last.side
 	end
 	for k,v in pairs(peripheral.getNames()) do
 		local Type = peripheral.getType(v)

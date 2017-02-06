@@ -58,7 +58,7 @@ CASES.get = {
 	[1] = function(this,args)
 		--[[Get all of an item z]]--
 		for k,v in pairs(CASES.find[1](this,args)) do 
-			if CASES.remove[1](this, {[1] = k}) > 0 then
+			if CASES.remove[1](this, {k}) > 0 then
 				return true
 			end
 		end
@@ -66,10 +66,22 @@ CASES.get = {
 	end,
 	[2] = function(this,args)
 		--[[Get x amount of an item z]]--
-		
+		for k,v in pairs(CASES.find[1](this, {args[1]})) do 
+			if CASES.remove[2](this, {k, args[2]}) > 0 then
+				return true
+			end
+		end
+		return false		
 	end,
 	[3] = function(this,args)
 		--[[Get x amount of an item z and insert it into a slot y]]--
+		for k,v in pairs(CASES.find[1](this,{args[1]})) do
+		 
+			if CASES.remove[3](this, {k, args[2], args[3]}) > 0 then
+				return true
+			end
+		end
+		return false
 	end
 }
 CASES.find = {
@@ -92,8 +104,25 @@ CASES.find = {
 		--[[Find an item z starting from slot x and ending at slot y]]--
 		local Item = false
 		local Found = {}
+		local Count = 0
 		if type(args[1]) == 'table' then
-			return false
+			local Items = this.chestObj.getAllStacks()
+			for k,v in pairs(Items) do
+				if k >= args[2] and k <= args[3] then
+					Item = v.all()
+					Count = Count + 1
+					for a,b in pairs(args[1]) do
+						if Item[a] == b then
+							Found[k] = Item
+						else
+							Found[k] = nil
+							Count = Count - 1
+							break
+						end
+					end
+				end
+			end
+			return (Count > 0 and Found) or nil
 		else
 			args[1] = args[1]:lower()
 			local Items = this.chestObj.getAllStacks()
@@ -102,17 +131,22 @@ CASES.find = {
 					Item = v.all()
 					if Item.display_name:lower():find(args[1]) then	
 						Found[k] = Item
+						Count = Count + 1
 					end
 				end
 			end
-			return Found
+			return (Count > 0 and Found) or nil
 		end
 	end
 }
-
+CASES.hasItems = {
+	[0] = function(this)
+		return (next(this.chestObj.getAllStacks()) and true) or false
+	end
+}
 
 function Chest.new(bot, wrapped, face)
-	local Source = {chestObj = wrapped, obj = bot }
+	local Source = {chestObj = wrapped, obj = bot, side = face }
 	local self = {side = face}
 	function self:insert(...)
 		local pArgs = {...}
@@ -141,8 +175,15 @@ function Chest.new(bot, wrapped, face)
 			return CASES.find[#pArgs](Source, pArgs)
 		end
 	end
+	function self:hasItems(...)
+		local pArgs = {...}
+		if Source.chestObj then
+			return CASES.hasItems[#pArgs](Source, pArgs)
+		end
+	end
 	function self:rewrap()
 		if peripheral.getType(self.side) == self.type then
+			Source.side = self.side
 			Source.chestObj = peripheral.wrap(self.side)
 		else
 			Source.chestObj = nil

@@ -8,6 +8,12 @@ local Cardinality = {
 	["NORTH"] = 2,
 	["EAST"] = 3
 }
+local Adjust = {
+	["SOUTH"] = 0,
+	["WEST"] = 1,
+	["NORTH"] = 2,
+	["EAST"] = 3
+}
 local fromDir = {
 	["UP"]  = 1,
 	["DOWN"] = 2,
@@ -65,7 +71,7 @@ local Turning = {
 	}
 }
 
-Geometrics = {Cardinality = Cardinality, Surface = Surface, Turning = Turning}
+Geometrics = {Cardinality = Cardinality, Surface = Surface, Adjust = Adjust, Turning = Turning}
 Geometrics.__index = Geometrics
 function Geometrics.new(this)
 	local Source = this

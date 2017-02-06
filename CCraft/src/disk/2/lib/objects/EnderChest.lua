@@ -20,33 +20,37 @@ local HexVert = {
 	[15] = 'F' 
 }
 
-local CASES = {
-	['setChannel']= {
-		[0] = function(this)
-			return false
-		end,
-		[1] = function(this, args)
-			args[1] = tonumber(args[1])
-			if type(args[1]) == 'number' then
-				this.chestObj.setFrequency(args[1])
-				this.frequency = args[1]
-				return true	
-			end
-		end,
-		[2] = function(this, args)
-			return false
-		end,
-		[3] = function(this, args)
-			local num = tonumber('0x' .. HexVert[args[1]] .. HexVert[args[2]] .. HexVert[args[3]] )
-			if num then
-				this.chestObj.setFrequency(num)
-				this.frequency = num
-				return true
-			else
-				return false
-			end
+local CASES = {}
+CASES.setChannel = {
+	[0] = function(this)
+		return false
+	end,
+	[1] = function(this, args)
+		args[1] = tonumber(args[1])
+		if type(args[1]) == 'number' then
+			this.chestObj.setFrequency(args[1])
+			this.frequency = args[1]
+			return true	
 		end
-	}
+	end,
+	[2] = function(this, args)
+		return false
+	end,
+	[3] = function(this, args)
+		local num = tonumber('0x' .. HexVert[args[1]] .. HexVert[args[2]] .. HexVert[args[3]] )
+		if num then
+			this.chestObj.setFrequency(num)
+			this.frequency = num
+			return true
+		else
+			return false
+		end
+	end
+}
+CASES.getChannel = {
+	[0] = function(this) 
+		return this.frequency
+	end
 }
 
 function EnderChest.new(bot, wrapped, face)
@@ -57,7 +61,7 @@ function EnderChest.new(bot, wrapped, face)
 		return CASES.setChannel[#pArgs](Source, pArgs)
 	end
 	function self:getChannel()
-		return Source.frequency
+		return CASES.getChannel[0](Source)
 	end
 	return self
 end

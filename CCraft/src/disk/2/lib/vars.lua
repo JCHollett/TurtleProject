@@ -1,5 +1,5 @@
 shell.run("/data/wrapping.lua")
-shell.run("/data/dropping.lua")
+shell.run("/data/inventory.lua")
 shell.run("/data/scanning.lua")
 shell.run("/data/sorting.lua")
 shell.run("/data/reactors.lua")
@@ -57,9 +57,9 @@ local fuelSlot = -1
 local fuelWeight = -1
 
 local fuel = {
-	["coal_block"] = 720,
-	["coal"] = 80,
-	["planks"] = 15
+	["minecraft:coal_block"] = 720,
+	["minecraft:coal"] = 80,
+	["minecraft:planks"] = 15
 }
 
 
@@ -67,6 +67,7 @@ local Bot = {}
 Bot.__index = Bot
 function Bot.new()
 	local self = setmetatable({
+		_COUNTER = 0,
 		_CARDINAL,
 		left,
 		right,
@@ -80,7 +81,6 @@ function Bot.new()
 		getInfo,
 		getSlot,
 		getInfoPair,
-
 		platformCircle,
 		platformRCircle,
 		digCircle,
@@ -92,13 +92,24 @@ function Bot.new()
 		find,
 		get,
 		wrap,
-		drop,
+		inventory,
 		scan
 	}, Bot)
 	return self
 end
 
 local this = Bot.new()
+local attacking = {
+	[-1] = function()
+		return map.attackDown
+	end,
+	[0] = function()
+		return map.attack
+	end,
+	[1] = function()
+		return map.attackUp
+	end
+}
 local turning = {
 	[-1] = function()
 		map.turnLeft()
@@ -127,24 +138,40 @@ local inspect = {
 	[0] = map.inspect,
 	[1] = map.inspectUp
 }
+local MAX_COUNT = 400
 local digging = {
 	[-1] = function()
-		if map.detectDown() then
-			return map.digDown()
+		if map.detectDown() and map.digDown() then
+			this._COUNTER = this._COUNTER + 1
+			if this._COUNTER > MAX_COUNT then
+				this._COUNTER = 0
+				this.inventory:deposit()
+			end
+			return true
 		else
 			return false
 		end
 	end,
 	[0] = function()
-		if map.detect() then
-			return map.dig()
+		if map.detect() and map.dig() then
+			this._COUNTER = this._COUNTER + 1
+			if this._COUNTER > MAX_COUNT then
+				this._COUNTER = 0
+				this.inventory:deposit()
+			end
+			return true
 		else
 			return false
 		end
 	end,
 	[1] = function()
-		if map.detectUp() then
-			return map.digUp()
+		if map.detectUp() and map.digUp() then
+			this._COUNTER = this._COUNTER + 1
+			if this._COUNTER > MAX_COUNT then
+				this._COUNTER = 0
+				this.inventory:deposit()
+			end
+			return true
 		else
 			return false
 		end
@@ -165,27 +192,80 @@ local drop = {
 }
 
 local MoveResult = nil
-local moving = {
-	[-1] = function()
-		this.scan.Data = nil
-		this.wrap:update()
-		return map.down()
-	end,
-	[0] = function()
-		this.scan.Data = nil
-		this.wrap:update()
-		return map.forward()
-	end,
-	[1] = function()
-		this.scan.Data = nil
-		this.wrap:update()		
-		return map.up()
-	end,
-	["back"] = function()
-		this.scan.Data = nil
-		this.wrap:update()		
-		return map.back()
-	end
+local moving = {}
+local MoveFXs = {
+	['withScan'] = {
+		[-1] = function()
+			this.scan.Data = nil
+			this.wrap:update()
+			if not map.down() then
+				return (this.refuel(MAX_COUNT) and map.down()) or false
+			else
+				return true
+			end
+		end,
+		[0] = function()
+			this.scan.Data = nil
+			this.wrap:update()
+			if not map.forward() then
+				return (this.refuel(MAX_COUNT) and map.forward()) or false
+			else
+				return true
+			end
+		end,
+		[1] = function()
+			this.scan.Data = nil
+			this.wrap:update()		
+			if not map.up() then
+				return (this.refuel(MAX_COUNT) and map.up()) or false
+			else
+				return true
+			end
+		end,
+		["back"] = function()
+			this.scan.Data = nil
+			this.wrap:update()		
+			if not map.back() then
+				return (this.refuel(MAX_COUNT) and map.back()) or false
+			else
+				return true
+			end
+		end
+	},
+	['withoutScan'] = {
+		[-1] = function()
+			this.wrap:update()
+			if not map.down() then
+				return (this.refuel(MAX_COUNT) and map.down()) or false
+			else
+				return true
+			end
+		end,
+		[0] = function()
+			this.wrap:update()
+			if not map.forward() then
+				return (this.refuel(MAX_COUNT) and map.forward()) or false
+			else
+				return true
+			end
+		end,
+		[1] = function()
+			this.wrap:update()		
+			if not map.up() then
+				return (this.refuel(MAX_COUNT) and map.up()) or false
+			else
+				return true
+			end
+		end,
+		["back"] = function()
+			this.wrap:update()		
+			if not map.back() then
+				return (this.refuel(MAX_COUNT) and map.back()) or false
+			else
+				return true
+			end
+		end
+	}
 }
 
 this.select = map.select
@@ -318,7 +398,7 @@ this.dig = function(v, u)
 				return digging[v]()
 			elseif u < 0 then
 				u = u * -1
-				t[0]()
+				turning[0]()
 			end
 			for i = 1, u do
 				while digging[v]() do
@@ -427,32 +507,44 @@ this.platformRCircle = function(N, Item)
 	return true
 end
 
+this.quarry = function(Width,Length,Depth)
+	for i=1,Length do
+		this.digShaft(Width,Depth,true)
+	end
+	this.inventory:deposit()	
+end
 this.digCircle = function(N)
 	if N % 2 == 0 then
 		N = N + 1
 	end
 	for i = 1, N - 1 do
-		this.dig(-1, 0)
-		this.dig(1, 0)
-		this.dig(1)
+		digging[1]()
+		digging[-1]()
+		while digging[0]() or not moving[0]() do 
+			attacking[0]()
+		end
 	end
 	while N > 1 do
-		this.right()
+		turning[1]()
 		for j = N - 1, 1, -1 do
-			this.dig(-1, 0)
-			this.dig(1, 0)
-			this.dig(1)
+			digging[1]()
+			digging[-1]()
+			while digging[0]() or not moving[0]() do 
+				attacking[0]()
+			end
 		end
-		this.right()
+		turning[1]()
 		for j = N - 1, 1, -1 do
-			this.dig(-1, 0)
-			this.dig(1, 0)
-			this.dig(1)
+			digging[1]()
+			digging[-1]()
+			while digging[0]() or not moving[0]() do 
+				attacking[0]()
+			end
 		end
 		N = N - 1
 	end
-	this.dig(-1, 0)
-	this.dig(1, 0)
+	digging[1]()
+	digging[-1]()
 end
 
 
@@ -460,46 +552,51 @@ this.digRCircle = function(N)
 	if N % 2 == 0 then
 		N = N + 1
 	end
-	this.dig(1, 0)
-	this.dig(-1, 0)
+	digging[1]()
+	digging[-1]()
 	for i = 1, N - 1 do
 		for j = 1, i do
-			this.dig(-1, 0)
-			this.dig(1, 0)
-			this.dig(1)
+			digging[1]()
+			digging[-1]()
+			while digging[0]() or not moving[0]() do 
+				attacking[0]()
+			end
 		end
-		this.right()
+		turning[1]()
 		for j = 1, i do
-			this.dig(-1, 0)
-			this.dig(1, 0)
-			this.dig(1)
+			digging[1]()
+			digging[-1]()
+			while digging[0]() or not moving[0]() do 
+				attacking[0]()
+			end
 		end
-		this.right()
+		turning[1]()
 	end
 
 	for i = 1, N - 1 do
-		this.dig(-1, 0)
-		this.dig(1, 0)
-		this.dig(1)
+		digging[1]()
+		digging[-1]()
+		while digging[0]() or not moving[0]() do 
+			attacking[0]()	
+		end
 	end
-	this.dig(-1, 0)
-	this.dig(1, 0)
-	this.right()
+	digging[1]()
+	digging[-1]()
+	turning[1]()
 end
 
-this.digShaft = function(W, D)
+this.digShaft = function(W, D, isQuarry)
+	local heading = this._CARDINAL
 	if not (W and D) then
 		return false
 	end
 	if W % 2 == 0 then
 		W = W + 1
 	end
+	isQuarry = isQuarry or false
 	local C = 0
 	local R = true
 	local d = 2
-	if not this.refuel(W ^ 2 * (D/3)) then
-		return false
-	end
 	while D > 0 do
 		if D >= 3 then
 			this.dig(-1, d)
@@ -523,20 +620,38 @@ this.digShaft = function(W, D)
 			R = true
 		end
 	end
+
 	if R then
-		this.move(1, C)
+		if isQuarry then
+			this.adjust(heading,C)
+			this.dig(W)
+		else
+			this.move(1,C)
+		end
 	else
 		this.move(math.floor(W / 2))
-		this.right()
-		this.move(math.floor(W / 2))
-		this.move(1, C)
+		if isQuarry then
+			this.left()
+			this.dig(1, C)
+			this.dig(W-math.floor(W / 2))
+		else
+			this.right()
+			this.move(math.floor(W / 2))
+			this.move(1, C)
+		end
 	end
 	return true
 end
 
 this.adjust = function(heading, height)
+	heading = (type(heading) == 'string' and heading:upper()) or heading
+	if type(heading) == 'string' then
+		heading = Geometrics.Adjust[heading:upper()]
+	else
+		heading = type(heading) == 'number' and heading % 4
+	end
 	if heading then
-		local res = (this._CARDINAL - Direction[heading])
+		local res = (this._CARDINAL - heading)
 		if res < 0 then
 			this.right(math.abs(res))
 		else
@@ -928,82 +1043,72 @@ this.tunnel = function(length)
 	end
 end
 
-local isFuel = function(x)
-	if fuel[x] then
-		return true
+this.getFuel = map.getFuelLevel
+this.refuel = function(x)
+	local search = {id = 'id'}
+	if x then
+		x = x - this.getFuel()
+		local slot = this.getSlot()
+		--Refuel from Inventory
+		for i=1,16 do
+			if x <= 0 then
+				return true
+			end
+			local item = this.getInfo(i)
+			local fuelVal = item and fuel[item.name]
+			if fuelVal then
+				if item.count * fuelVal <= x then
+					x = x - item.count * fuelVal
+					this.select(i)
+					map.refuel(item.count) 
+				else
+					if item.count > 0 then
+						local amnt = math.ceil(x / fuelVal)
+						x = x - amnt * fuelVal
+						this.select(i)
+						map.refuel(amnt)
+					end
+				end
+			end
+		end
+		this.select(slot)
+		if x <= 0 then
+			return true
+		end
+		--Refuel from ender_chest
+		local chest = this.inventory:put()
+		local stop = false
+		while not stop do
+			stop = true
+			if x <= 0 then
+				return true
+			end
+			for name,value in pairs(fuel) do
+				search.id = name
+				local Results = chest:find(search)
+				stop = not Results
+				for slot,item in pairs(Results or {}) do
+					if x <= 0 then
+						return true
+					end
+					if item.qty * value <= x then
+						x = x - item.qty * value
+						chest:remove(slot)
+						map.refuel(item.qty) 
+					else
+						if item.qty > 0 then
+							local amnt = chest:remove(slot, math.ceil(x / value))
+							x = x - amnt * value
+							map.refuel(amnt)
+						end
+					end
+				end 
+			end
+		end
+		this.inventory:take()
+		return false	
 	else
 		return false
-	end
-end
-
-this.getFuel = map.getFuel
-refuelSlot = function()
-	if fuelSlot == -1 then
-		for i = 1, 16 do
-			item = this.getInfo(i)
-			if item then
-				local name = string.sub(item.name, string.find(item.name, ":") + 1)
-				if isFuel(name) then
-					fuelWeight = fuel[name]
-					fuelSlot = i
-					return fuelSlot
-				elseif name == "material" and item.damage == 6 then
-					fuelWeight = 160
-					fuelSlot = i
-					return fuelSlot
-				end
-			end
-		end
-		return fuelSlot
-	else
-		item = this.getInfo(fuelSlot)
-		if item then
-			name = string.sub(item.name, string.find(item.name, ":") + 1)
-			if isFuel(name) then
-				return fuelSlot
-			elseif name == "material" and item.damage == 6 then
-				return fuelSlot
-			else
-				fuelSlot = -1
-				fuelWeight = -1
-				return refuelSlot()
-			end
-		else
-			fuelSlot = -1
-			fuelWeight = -1
-			return refuelSlot()
-		end
-	end
-end
-
-this.refuel = function(x)
-	local originalSlot = this.getSlot()
-	if not x then
-		if refuelSlot() > 0 then
-			this.select(fuelSlot)
-			map.refuel(1)
-			this.select(originalSlot)
-			return true
-		else
-			return false
-		end
-	else
-		local fuelLevel = map.getFuel()
-		if refuelSlot() > 0 then
-			this.select(fuelSlot)
-			while fuelLevel < tonumber(x) do
-				if refuelSlot() > 0 then
-					map.refuel(1)
-					fuelLevel = map.getFuel()
-				else
-					return false
-				end
-			end
-			this.select(originalSlot)
-			return true
-		else
-			return false
-		end
 	end
 end
 
@@ -1023,6 +1128,7 @@ this.selectItem = function(Item)
 	return false
 end
 
+
 _CARDINAL_SETUP = function()
 	cprint("Set the &1cardinal&0 direction... &9\n")
 	for i = 0, 3, 1 do
@@ -1041,7 +1147,7 @@ _CARDINAL_SETUP = function()
 		cprint("&1" .. os.getComputerLabel() .. " ready . . .\n&0")
 	elseif str == "n" then
 		cprint("&1" .. os.getComputerLabel() .. " not ready rebooting...\n&0")
-		os.sleep(3)
+		os.sleep(0.5)
 		os.reboot()
 	else
 		cprint("&eBad Input: Please reboot or set manually")
@@ -1049,8 +1155,13 @@ _CARDINAL_SETUP = function()
 end
 _CARDINAL_SETUP()
 this.geo = Geometrics.new(this)
-this.drop = Inventory.new(this)
+this.inventory = Inventory.new(this)
 this.wrap = Wrap.new(this)
+if this.scan then
+	moving = MoveFXs.withScan
+else
+	moving = MoveFXs.withoutScan
+end
 cprint("&1Loaded default variables and settings &0\n")
 
 bot = this
