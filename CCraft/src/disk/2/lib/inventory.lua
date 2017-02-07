@@ -82,8 +82,18 @@ end
 function Inventory:deposit()
 	if self.obj.selectItem("ender") then
 		local slot = self.obj.getSlot()
-		self.obj.place[1]()
-		local chest = self.obj.wrap(Devices.ENDER_CHEST)
+		os.sleep(0.1)
+		self.obj.dig(-1,0)
+		self.obj.place[-1]()
+		os.sleep(0.1)
+		local check, chest = pcall(self.obj.wrap, Devices.ENDER_CHEST)
+		while not check do
+			self.obj.wrap:update()
+			self.obj.dig(1,0)
+			os.sleep(0.1)
+			check, chest = pcall(self.obj.wrap, Devices.ENDER_CHEST)
+			os.sleep(0.1)
+		end
 		chest:setChannel(deposit)
 		local Item = false;
 		for i=1,16 do 
@@ -93,7 +103,7 @@ function Inventory:deposit()
 			end
 		end
 		self.obj.select(slot)
-		self.obj.dig(1,0)
+		self.obj.dig(-1,0)
 	end
 end
 function Inventory:put() 

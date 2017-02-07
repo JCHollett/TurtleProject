@@ -53,15 +53,12 @@ local map = {
 	transferTo      = turtle.transferTo
 }
 
-local fuelSlot = -1
-local fuelWeight = -1
-
+local MAX_COUNT = 300
 local fuel = {
 	["minecraft:coal_block"] = 720,
 	["minecraft:coal"] = 80,
 	["minecraft:planks"] = 15
 }
-
 
 local Bot = {}
 Bot.__index = Bot
@@ -100,15 +97,9 @@ end
 
 local this = Bot.new()
 local attacking = {
-	[-1] = function()
-		return map.attackDown
-	end,
-	[0] = function()
-		return map.attack
-	end,
-	[1] = function()
-		return map.attackUp
-	end
+	[-1] = map.attackDown,
+	[0] = map.attack,
+	[1] = map.attackUp
 }
 local turning = {
 	[-1] = function()
@@ -138,7 +129,7 @@ local inspect = {
 	[0] = map.inspect,
 	[1] = map.inspectUp
 }
-local MAX_COUNT = 400
+
 local digging = {
 	[-1] = function()
 		if map.detectDown() and map.digDown() then
@@ -518,8 +509,8 @@ this.digCircle = function(N)
 		N = N + 1
 	end
 	for i = 1, N - 1 do
-		digging[1]()
 		digging[-1]()
+		digging[1]()
 		while digging[0]() or not moving[0]() do 
 			attacking[0]()
 		end
@@ -527,24 +518,24 @@ this.digCircle = function(N)
 	while N > 1 do
 		turning[1]()
 		for j = N - 1, 1, -1 do
-			digging[1]()
 			digging[-1]()
+			digging[1]()
 			while digging[0]() or not moving[0]() do 
 				attacking[0]()
 			end
 		end
 		turning[1]()
 		for j = N - 1, 1, -1 do
-			digging[1]()
 			digging[-1]()
+			digging[1]()
 			while digging[0]() or not moving[0]() do 
 				attacking[0]()
 			end
 		end
 		N = N - 1
 	end
-	digging[1]()
 	digging[-1]()
+	digging[1]()
 end
 
 
@@ -552,20 +543,20 @@ this.digRCircle = function(N)
 	if N % 2 == 0 then
 		N = N + 1
 	end
-	digging[1]()
 	digging[-1]()
+	digging[1]()
 	for i = 1, N - 1 do
 		for j = 1, i do
-			digging[1]()
 			digging[-1]()
+			digging[1]()
 			while digging[0]() or not moving[0]() do 
 				attacking[0]()
 			end
 		end
 		turning[1]()
 		for j = 1, i do
-			digging[1]()
 			digging[-1]()
+			digging[1]()
 			while digging[0]() or not moving[0]() do 
 				attacking[0]()
 			end
@@ -574,14 +565,14 @@ this.digRCircle = function(N)
 	end
 
 	for i = 1, N - 1 do
-		digging[1]()
 		digging[-1]()
+		digging[1]()
 		while digging[0]() or not moving[0]() do 
-			attacking[0]()	
+			attacking[0]()
 		end
 	end
-	digging[1]()
 	digging[-1]()
+	digging[1]()
 	turning[1]()
 end
 
